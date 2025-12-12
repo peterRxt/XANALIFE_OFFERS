@@ -1,0 +1,592 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Xanalife Offers</title>
+
+<style>
+    body { font-family: Arial; background:#f5f7fa; margin:0; padding:20px; }
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto 20px auto;
+        padding: 0 10px;
+    }
+    h1 { margin: 0; text-align: left; }
+    .last-updated {
+        color: #666;
+        font-size: 14px;
+        font-style: italic;
+        background: white;
+        padding: 8px 15px;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filters-container {
+        max-width:1200px; margin:0 auto 20px auto; background:white; 
+        padding:15px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    }
+    .filter-group {
+        margin-bottom:15px;
+        padding-bottom:10px;
+        border-bottom:1px solid #e5e5e5;
+    }
+    .filter-group:last-child {
+        border-bottom:none;
+        margin-bottom:0;
+    }
+    .filter-title {
+        font-weight:bold; margin-bottom:8px; color:#003366;
+    }
+    .filter-buttons {
+        display:flex; flex-wrap:wrap; gap:10px;
+    }
+    .filter-btn {
+        padding:8px 16px; background:#e5e5e5; border:none; border-radius:4px;
+        cursor:pointer; font-size:14px; transition:all 0.3s;
+        white-space: nowrap;
+    }
+    .filter-btn:hover {
+        background:#d5d5d5;
+    }
+    .filter-btn.active {
+        background:#003366; color:white;
+    }
+    h2 { margin-top:40px; margin-bottom:10px; text-align:center; }
+    .tables-container {
+        max-width:1200px; margin:0 auto;
+    }
+    table {
+        width: 100%; border-collapse:collapse;
+        background:white; border-radius:8px; overflow:hidden; 
+        box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:40px;
+    }
+    th { background:#003366; color:white; padding:12px; text-align:left; font-size:14px; }
+    td { padding:12px; border-bottom:1px solid #e5e5e5; font-size:14px; }
+    tr:hover { background:#f0f4ff; }
+    .status { padding:4px 8px; border-radius:4px; color:white; font-size:12px; text-transform:uppercase; display:inline-block; }
+    .active { background:#28a745; }
+    .upcoming { background:#ffc107; color:black; }
+    .expired { background:#dc3545; }
+    .center { text-align:center; }
+    .loading { text-align:center; font-style:italic; color:#ff4500; font-weight:bold; font-size:16px; }
+    .no-results { text-align:center; padding:40px; font-style:italic; color:#666; }
+    .table-group {
+        margin-bottom:40px;
+    }
+    .supplier-name {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .clear-filters {
+        background: #dc3545 !important;
+        color: white !important;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    .clear-filters:hover {
+        background: #c82333 !important;
+    }
+    .active-filters {
+        background: white;
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: #666;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-tag {
+        background: #003366;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 8px;
+        display: inline-block;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="header-container">
+    <h1>Xanalife Offers</h1>
+    <div class="last-updated" id="last-updated">
+        Last Updated: Loading...
+    </div>
+</div>
+
+<div class="filters-container">
+    <div class="filter-group">
+        <div class="filter-title">VIEW BY SECTION</div>
+        <div class="filter-buttons" id="section-buttons">
+            <button class="filter-btn" data-filter="section" data-value="all">All Sections</button>
+            <!-- Section buttons will be generated dynamically -->
+        </div>
+    </div>
+    
+    <div class="filter-group">
+        <div class="filter-title">SUPPLIERS WITH OFFERS</div>
+        <div class="filter-buttons" id="supplier-buttons">
+            <button class="filter-btn" data-filter="supplier" data-value="all">All Suppliers</button>
+            <!-- Supplier buttons will be generated dynamically -->
+        </div>
+    </div>
+    
+    <div class="filter-group">
+        <div class="filter-title">VIEW BY STATUS</div>
+        <div class="filter-buttons" id="status-buttons">
+            <button class="filter-btn" data-filter="status" data-value="all">All Status</button>
+            <button class="filter-btn" data-filter="status" data-value="active">Active Only</button>
+            <button class="filter-btn" data-filter="status" data-value="upcoming">Upcoming Only</button>
+        </div>
+    </div>
+    
+    <button class="clear-filters" onclick="clearAllFilters()">Clear All Filters</button>
+</div>
+
+<div id="active-filters-container" class="active-filters" style="display: none;">
+    Active Filters: <span id="active-filters"></span>
+</div>
+
+<div class="tables-container">
+    <!-- Always show both tables - Current Offers -->
+    <div class="table-group">
+        <h2 id="current-title">Current Offers</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Description</th>
+                    <th>Offer Price (KSh)</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Supplier</th>
+                    <th>Mechanism</th>
+                    <th>Section</th>
+                    <th class="center">Offer Duration (Days)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="current-offers">
+                <tr><td colspan="10" class="loading">Loading current offers...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Always show both tables - Upcoming Offers -->
+    <div class="table-group">
+        <h2 id="upcoming-title">Upcoming Offers</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Description</th>
+                    <th>Offer Price (KSh)</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Supplier</th>
+                    <th>Mechanism</th>
+                    <th>Section</th>
+                    <th class="center">Offer Duration (Days)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="upcoming-offers">
+                <tr><td colspan="10" class="loading">Loading upcoming offers...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwn4BaEafx5Cw0VfCWLgbS70869XMCZTKm4Lf1yyZUumlO6hGJeMTwuHPcg46RZn1vT_Q/exec";
+
+// Global variables
+let allOffers = [];
+let currentFilters = {
+    section: 'all',
+    supplier: 'all', 
+    status: 'all'
+};
+
+// Format date to YYYY-MM-DD
+function cleanDate(value){
+    if(!value) return "";
+    const d = new Date(value);
+    return d.toISOString().slice(0,10);
+}
+
+// Determine status - now based on the "status" field from your worksheet
+function getItemStatus(item){
+    // First check the status field from your worksheet
+    if(item.status && item.status.toLowerCase() === "active") {
+        return "active";
+    }
+    if(item.status && item.status.toLowerCase() === "upcoming") {
+        return "upcoming";
+    }
+    
+    // Fallback to date-based logic if status field is not available
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const startDate = new Date(item.StartDate);
+    const endDate = new Date(item.EndDate);
+    
+    if (startDate > today) {
+        return "upcoming";
+    } else if (endDate >= today) {
+        return "active";
+    } else {
+        return "expired";
+    }
+}
+
+// Calculate offer duration in days
+function offerDuration(start, end){
+    if(!start || !end) return "";
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffTime = e - s;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+}
+
+// Extract unique sections and suppliers from offers
+function extractFiltersData(offers) {
+    const sections = new Set();
+    const suppliers = new Set();
+    
+    offers.forEach(item => {
+        // Extract section (corrected for your worksheet)
+        const section = (item.Section || item.section || "").trim();
+        if (section) {
+            sections.add(section);
+        }
+        
+        // Extract supplier
+        const supplier = (item.Supplier || item.supplier || "").trim();
+        if (supplier) {
+            suppliers.add(supplier);
+        }
+    });
+    
+    return { sections: Array.from(sections).sort(), suppliers: Array.from(suppliers).sort() };
+}
+
+// Create filter buttons for sections
+function createSectionButtons(sections) {
+    const container = document.getElementById('section-buttons');
+    let html = '<button class="filter-btn active" data-filter="section" data-value="all">All Sections</button>';
+    
+    sections.forEach(section => {
+        html += `<button class="filter-btn" data-filter="section" data-value="${section}">${section}</button>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Create filter buttons for suppliers
+function createSupplierButtons(suppliers) {
+    const container = document.getElementById('supplier-buttons');
+    let html = '<button class="filter-btn active" data-filter="supplier" data-value="all">All Suppliers</button>';
+    
+    suppliers.forEach(supplier => {
+        // Truncate long supplier names for display
+        const displayName = supplier.length > 25 ? supplier.substring(0, 22) + '...' : supplier;
+        html += `<button class="filter-btn" data-filter="supplier" data-value="${supplier}" title="${supplier}">${displayName}</button>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Apply ALL filters independently
+function applyAllFilters(offers) {
+    return offers.filter(item => {
+        // Apply section filter independently
+        if (currentFilters.section !== 'all') {
+            const section = (item.Section || item.section || "").trim();
+            if (section !== currentFilters.section) {
+                return false;
+            }
+        }
+        
+        // Apply supplier filter independently  
+        if (currentFilters.supplier !== 'all') {
+            const supplier = (item.Supplier || item.supplier || "").trim();
+            if (supplier !== currentFilters.supplier) {
+                return false;
+            }
+        }
+        
+        // Apply status filter independently
+        if (currentFilters.status !== 'all') {
+            const status = getItemStatus(item);
+            if (status !== currentFilters.status) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+}
+
+// Get offers for CURRENT table with all filters applied
+function getCurrentOffers(filteredOffers) {
+    let current = filteredOffers.filter(item => getItemStatus(item) === "active");
+    
+    // Apply status filter for current table
+    if (currentFilters.status === 'upcoming') {
+        return []; // Hide all current offers when "Upcoming Only" is selected
+    }
+    
+    // Sort current offers by end date
+    return current.sort((a, b) => new Date(a.EndDate) - new Date(b.EndDate));
+}
+
+// Get offers for UPCOMING table with all filters applied
+function getUpcomingOffers(filteredOffers) {
+    let upcoming = filteredOffers.filter(item => getItemStatus(item) === "upcoming");
+    
+    // Apply status filter for upcoming table
+    if (currentFilters.status === 'active') {
+        return []; // Hide all upcoming offers when "Active Only" is selected
+    }
+    
+    // Sort upcoming offers by start date
+    return upcoming.sort((a, b) => new Date(a.StartDate) - new Date(b.StartDate));
+}
+
+// Render a single offer row
+function renderOfferRow(item) {
+    const duration = offerDuration(item.StartDate, item.EndDate);
+    const status = getItemStatus(item);
+    const statusClass = status;
+    const section = (item.Section || item.section || "").trim();
+    const supplier = (item.Supplier || item.supplier || "").trim();
+    
+    return `
+        <tr>
+            <td>${item.SKU}</td>
+            <td>${item.DESCRIPTION}</td>
+            <td>${item.OfferPrice}</td>
+            <td>${cleanDate(item.StartDate)}</td>
+            <td>${cleanDate(item.EndDate)}</td>
+            <td class="supplier-name" title="${supplier}">${supplier}</td>
+            <td>${item.Mechanism || item.mechanism || ""}</td>
+            <td>${section}</td>
+            <td class="center">${duration}</td>
+            <td><span class="status ${statusClass}">${status}</span></td>
+        </tr>
+    `;
+}
+
+// Render both tables independently
+function renderAllTables() {
+    // Apply ALL filters to all offers
+    const filteredOffers = applyAllFilters(allOffers);
+    
+    // Get offers for each table
+    const currentOffers = getCurrentOffers(filteredOffers);
+    const upcomingOffers = getUpcomingOffers(filteredOffers);
+    
+    // Render current offers table
+    const currentTbody = document.getElementById("current-offers");
+    if (currentOffers.length > 0) {
+        let currentHtml = '';
+        currentOffers.forEach(item => {
+            currentHtml += renderOfferRow(item);
+        });
+        currentTbody.innerHTML = currentHtml;
+        document.getElementById("current-title").textContent = `Current Offers (${currentOffers.length})`;
+    } else {
+        currentTbody.innerHTML = `<tr><td colspan="10" class="no-results">No current offers found</td></tr>`;
+        document.getElementById("current-title").textContent = `Current Offers (0)`;
+    }
+    
+    // Render upcoming offers table
+    const upcomingTbody = document.getElementById("upcoming-offers");
+    if (upcomingOffers.length > 0) {
+        let upcomingHtml = '';
+        upcomingOffers.forEach(item => {
+            upcomingHtml += renderOfferRow(item);
+        });
+        upcomingTbody.innerHTML = upcomingHtml;
+        document.getElementById("upcoming-title").textContent = `Upcoming Offers (${upcomingOffers.length})`;
+    } else {
+        upcomingTbody.innerHTML = `<tr><td colspan="10" class="no-results">No upcoming offers found</td></tr>`;
+        document.getElementById("upcoming-title").textContent = `Upcoming Offers (0)`;
+    }
+}
+
+// Update table titles based on active filters
+function updateTableTitles() {
+    const currentTitle = document.getElementById("current-title");
+    const upcomingTitle = document.getElementById("upcoming-title");
+    
+    let titlePrefix = "";
+    
+    if (currentFilters.section !== 'all') {
+        titlePrefix += currentFilters.section + " ";
+    }
+    
+    if (currentFilters.supplier !== 'all') {
+        const shortSupplier = currentFilters.supplier.length > 20 
+            ? currentFilters.supplier.substring(0, 17) + '...' 
+            : currentFilters.supplier;
+        titlePrefix += shortSupplier + " ";
+    }
+    
+    if (currentFilters.status === 'active') {
+        currentTitle.textContent = `${titlePrefix}Current Offers`;
+        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
+    } else if (currentFilters.status === 'upcoming') {
+        currentTitle.textContent = `${titlePrefix}Current Offers`;
+        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
+    } else {
+        currentTitle.textContent = `${titlePrefix}Current Offers`;
+        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
+    }
+}
+
+// Update active filters display
+function updateActiveFilters() {
+    const activeFiltersContainer = document.getElementById('active-filters-container');
+    const activeFiltersSpan = document.getElementById('active-filters');
+    
+    const activeFilters = [];
+    
+    if (currentFilters.section !== 'all') {
+        activeFilters.push(`<span class="filter-tag">Section: ${currentFilters.section}</span>`);
+    }
+    
+    if (currentFilters.supplier !== 'all') {
+        activeFilters.push(`<span class="filter-tag">Supplier: ${currentFilters.supplier}</span>`);
+    }
+    
+    if (currentFilters.status !== 'all') {
+        const statusText = currentFilters.status === 'active' ? 'Active Only' : 'Upcoming Only';
+        activeFilters.push(`<span class="filter-tag">Status: ${statusText}</span>`);
+    }
+    
+    if (activeFilters.length > 0) {
+        activeFiltersContainer.style.display = 'block';
+        activeFiltersSpan.innerHTML = activeFilters.join('');
+    } else {
+        activeFiltersContainer.style.display = 'none';
+    }
+}
+
+// Update last updated timestamp
+function updateLastUpdated() {
+    const now = new Date();
+    const formattedDate = now.toLocaleString('en-KE', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    document.getElementById('last-updated').textContent = `Last Updated: ${formattedDate}`;
+}
+
+// Clear all filters
+function clearAllFilters() {
+    // Reset all filters to "all"
+    currentFilters = {
+        section: 'all',
+        supplier: 'all',
+        status: 'all'
+    };
+    
+    // Reset all filter button states
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-value') === 'all') {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Re-render everything
+    renderAllTables();
+    updateTableTitles();
+    updateActiveFilters();
+    updateLastUpdated();
+}
+
+// Handle filter button clicks - COMPLETELY INDEPENDENT
+function setupFilterButtons() {
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('.filter-btn')) {
+            const filterType = e.target.getAttribute('data-filter');
+            const filterValue = e.target.getAttribute('data-value');
+            
+            // Update the specific filter ONLY
+            currentFilters[filterType] = filterValue;
+            
+            // Update button active state for this filter group ONLY
+            document.querySelectorAll(`.filter-btn[data-filter="${filterType}"]`)
+                .forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Re-render tables with all filters applied independently
+            renderAllTables();
+            
+            // Update UI elements
+            updateTableTitles();
+            updateActiveFilters();
+            updateLastUpdated();
+        }
+    });
+}
+
+// Load offers on page load
+async function loadOffers(){
+    try{
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        allOffers = data;
+        
+        // Extract unique sections and suppliers
+        const filterData = extractFiltersData(allOffers);
+        
+        // Create filter buttons
+        createSectionButtons(filterData.sections);
+        createSupplierButtons(filterData.suppliers);
+        
+        // Initial render with all offers
+        renderAllTables();
+        
+        // Update last updated timestamp
+        updateLastUpdated();
+        
+        // Setup filter buttons
+        setupFilterButtons();
+    }catch(err){
+        console.error("Error loading offers:", err);
+        document.getElementById("current-offers").innerHTML = 
+            '<tr><td colspan="10" class="loading">Failed to load offers. Please try again later.</td></tr>';
+        document.getElementById("upcoming-offers").innerHTML = 
+            '<tr><td colspan="10" class="loading"></td></tr>';
+        document.getElementById('last-updated').textContent = 'Last Updated: Error loading data';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', loadOffers);
+</script>
+</body>
+</html>
