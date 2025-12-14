@@ -1,12 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Xanalife Offers</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-    body { font-family: Arial; background:#f5f7fa; margin:0; padding:20px; }
+    body { font-family: Arial, sans-serif; background:#f5f7fa; margin:0; padding:20px; }
     .header-container {
         display: flex;
         justify-content: space-between;
@@ -14,6 +13,8 @@
         max-width: 1200px;
         margin: 0 auto 20px auto;
         padding: 0 10px;
+        flex-wrap: wrap;
+        gap: 15px;
     }
     h1 { margin: 0; text-align: left; }
     .last-updated {
@@ -24,6 +25,7 @@
         padding: 8px 15px;
         border-radius: 4px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        white-space: nowrap;
     }
     .filters-container {
         max-width:1200px; margin:0 auto 20px auto; background:white; 
@@ -114,10 +116,177 @@
         margin-right: 8px;
         display: inline-block;
     }
+    .warning { 
+        background-color: #ff6b6b !important; 
+        color: white !important; 
+        font-weight: bold;
+    }
+    .days-remaining, .days-to-start {
+        text-align: center;
+        font-weight: bold;
+        padding: 4px 8px;
+        border-radius: 4px;
+        min-width: 60px;
+        display: inline-block;
+    }
+    
+    /* Modern Notification Popup */
+    .notification-popup {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 25px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        z-index: 1000;
+        max-width: 350px;
+        animation: slideIn 0.5s ease-out;
+        display: none;
+    }
+    
+    .notification-popup.show {
+        display: block;
+        animation: slideIn 0.5s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .notification-title {
+        font-weight: bold;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .notification-title i {
+        font-size: 18px;
+    }
+    
+    .close-notification {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .notification-content {
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 15px;
+    }
+    
+    .notification-badge {
+        background: #ff6b6b;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-left: 8px;
+    }
+    
+    .notification-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    .notification-btn {
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .notification-btn.primary {
+        background: white;
+        color: #667eea;
+    }
+    
+    .notification-btn.secondary {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    
+    .notification-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .last-updated {
+            align-self: flex-end;
+            font-size: 12px;
+        }
+        
+        table {
+            font-size: 12px;
+        }
+        
+        th, td {
+            padding: 8px;
+        }
+        
+        .notification-popup {
+            left: 20px;
+            right: 20px;
+            max-width: none;
+        }
+    }
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
+
+<!-- Modern Notification Popup -->
+<div id="notificationPopup" class="notification-popup">
+    <div class="notification-header">
+        <div class="notification-title">
+            <i class="fas fa-bell"></i>
+            New Offers Available!
+            <span id="newItemsCount" class="notification-badge">0</span>
+        </div>
+        <button class="close-notification" onclick="closeNotification()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="notification-content" id="notificationMessage">
+        New offers have been added since your last visit. Check them out!
+    </div>
+    <div class="notification-footer">
+        <button class="notification-btn secondary" onclick="closeNotification()">Dismiss</button>
+        <button class="notification-btn primary" onclick="viewNewOffers()">View Offers</button>
+    </div>
+</div>
 
 <div class="header-container">
     <h1>Xanalife Offers</h1>
@@ -171,6 +340,7 @@
                     <th>Offer Price (KSh)</th>
                     <th>Start Date</th>
                     <th>End Date</th>
+                    <th>Days Remaining</th>
                     <th>Supplier</th>
                     <th>Mechanism</th>
                     <th>Section</th>
@@ -179,7 +349,7 @@
                 </tr>
             </thead>
             <tbody id="current-offers">
-                <tr><td colspan="10" class="loading">Loading current offers...</td></tr>
+                <tr><td colspan="11" class="loading">Loading current offers...</td></tr>
             </tbody>
         </table>
     </div>
@@ -195,6 +365,7 @@
                     <th>Offer Price (KSh)</th>
                     <th>Start Date</th>
                     <th>End Date</th>
+                    <th>Days to Start</th>
                     <th>Supplier</th>
                     <th>Mechanism</th>
                     <th>Section</th>
@@ -203,7 +374,7 @@
                 </tr>
             </thead>
             <tbody id="upcoming-offers">
-                <tr><td colspan="10" class="loading">Loading upcoming offers...</td></tr>
+                <tr><td colspan="11" class="loading">Loading upcoming offers...</td></tr>
             </tbody>
         </table>
     </div>
@@ -211,6 +382,8 @@
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbwn4BaEafx5Cw0VfCWLgbS70869XMCZTKm4Lf1yyZUumlO6hGJeMTwuHPcg46RZn1vT_Q/exec";
+const STORAGE_KEY = 'xanalife_last_view';
+const SHEET_UPDATE_KEY = 'sheet_last_updated';
 
 // Global variables
 let allOffers = [];
@@ -219,6 +392,43 @@ let currentFilters = {
     supplier: 'all', 
     status: 'all'
 };
+let lastViewedOffers = new Set();
+let sheetLastUpdated = null;
+
+// Get today's date at midnight for comparison
+function getToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+// Calculate days remaining for current offers
+function calculateDaysRemaining(endDate) {
+    if (!endDate) return null;
+    
+    const today = getToday();
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    const diffTime = end - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 ? diffDays : 0;
+}
+
+// Calculate days to start for upcoming offers
+function calculateDaysToStart(startDate) {
+    if (!startDate) return null;
+    
+    const today = getToday();
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const diffTime = start - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 0 ? diffDays : 0;
+}
 
 // Format date to YYYY-MM-DD
 function cleanDate(value){
@@ -227,22 +437,25 @@ function cleanDate(value){
     return d.toISOString().slice(0,10);
 }
 
-// Determine status - now based on the "status" field from your worksheet
+// Determine status - UPDATED: If start date is today or in the past, mark as active
 function getItemStatus(item){
-    // First check the status field from your worksheet
-    if(item.status && item.status.toLowerCase() === "active") {
+    const today = getToday();
+    const startDate = new Date(item.StartDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    // If start date is today or in the past, mark as active
+    if (startDate <= today) {
         return "active";
     }
+    
+    // Otherwise check status field
     if(item.status && item.status.toLowerCase() === "upcoming") {
         return "upcoming";
     }
     
-    // Fallback to date-based logic if status field is not available
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const startDate = new Date(item.StartDate);
+    // Fallback to original logic
     const endDate = new Date(item.EndDate);
+    endDate.setHours(0, 0, 0, 0);
     
     if (startDate > today) {
         return "upcoming";
@@ -269,13 +482,11 @@ function extractFiltersData(offers) {
     const suppliers = new Set();
     
     offers.forEach(item => {
-        // Extract section (corrected for your worksheet)
         const section = (item.Section || item.section || "").trim();
         if (section) {
             sections.add(section);
         }
         
-        // Extract supplier
         const supplier = (item.Supplier || item.supplier || "").trim();
         if (supplier) {
             suppliers.add(supplier);
@@ -303,7 +514,6 @@ function createSupplierButtons(suppliers) {
     let html = '<button class="filter-btn active" data-filter="supplier" data-value="all">All Suppliers</button>';
     
     suppliers.forEach(supplier => {
-        // Truncate long supplier names for display
         const displayName = supplier.length > 25 ? supplier.substring(0, 22) + '...' : supplier;
         html += `<button class="filter-btn" data-filter="supplier" data-value="${supplier}" title="${supplier}">${displayName}</button>`;
     });
@@ -314,7 +524,6 @@ function createSupplierButtons(suppliers) {
 // Apply ALL filters independently
 function applyAllFilters(offers) {
     return offers.filter(item => {
-        // Apply section filter independently
         if (currentFilters.section !== 'all') {
             const section = (item.Section || item.section || "").trim();
             if (section !== currentFilters.section) {
@@ -322,7 +531,6 @@ function applyAllFilters(offers) {
             }
         }
         
-        // Apply supplier filter independently  
         if (currentFilters.supplier !== 'all') {
             const supplier = (item.Supplier || item.supplier || "").trim();
             if (supplier !== currentFilters.supplier) {
@@ -330,7 +538,6 @@ function applyAllFilters(offers) {
             }
         }
         
-        // Apply status filter independently
         if (currentFilters.status !== 'all') {
             const status = getItemStatus(item);
             if (status !== currentFilters.status) {
@@ -346,43 +553,101 @@ function applyAllFilters(offers) {
 function getCurrentOffers(filteredOffers) {
     let current = filteredOffers.filter(item => getItemStatus(item) === "active");
     
-    // Apply status filter for current table
     if (currentFilters.status === 'upcoming') {
-        return []; // Hide all current offers when "Upcoming Only" is selected
+        return [];
     }
     
-    // Sort current offers by end date
-    return current.sort((a, b) => new Date(a.EndDate) - new Date(b.EndDate));
+    // Sort by days remaining (ascending) so offers ending soonest appear first
+    return current.sort((a, b) => {
+        const daysA = calculateDaysRemaining(a.EndDate) || Infinity;
+        const daysB = calculateDaysRemaining(b.EndDate) || Infinity;
+        return daysA - daysB;
+    });
 }
 
 // Get offers for UPCOMING table with all filters applied
 function getUpcomingOffers(filteredOffers) {
     let upcoming = filteredOffers.filter(item => getItemStatus(item) === "upcoming");
     
-    // Apply status filter for upcoming table
     if (currentFilters.status === 'active') {
-        return []; // Hide all upcoming offers when "Active Only" is selected
+        return [];
     }
     
-    // Sort upcoming offers by start date
-    return upcoming.sort((a, b) => new Date(a.StartDate) - new Date(b.StartDate));
+    // Sort by days to start (ascending) so offers starting soonest appear first
+    return upcoming.sort((a, b) => {
+        const daysA = calculateDaysToStart(a.StartDate) || Infinity;
+        const daysB = calculateDaysToStart(b.StartDate) || Infinity;
+        return daysA - daysB;
+    });
 }
 
-// Render a single offer row
-function renderOfferRow(item) {
+// Render a single offer row for CURRENT offers
+function renderCurrentOfferRow(item) {
     const duration = offerDuration(item.StartDate, item.EndDate);
     const status = getItemStatus(item);
     const statusClass = status;
     const section = (item.Section || item.section || "").trim();
     const supplier = (item.Supplier || item.supplier || "").trim();
     
+    // Calculate days remaining
+    const daysRemaining = calculateDaysRemaining(item.EndDate);
+    let daysRemainingHTML = '<span class="days-remaining">-</span>';
+    
+    if (daysRemaining !== null) {
+        const daysClass = daysRemaining < 3 ? 'warning' : '';
+        daysRemainingHTML = `<span class="days-remaining ${daysClass}">${daysRemaining}</span>`;
+    }
+    
+    // Check if this is a new offer
+    const isNewOffer = isNewItem(item);
+    const skuDisplay = isNewOffer ? `${item.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : item.SKU;
+    
     return `
-        <tr>
-            <td>${item.SKU}</td>
+        <tr ${isNewOffer ? 'style="border-left: 4px solid #ffd700;"' : ''}>
+            <td>${skuDisplay}</td>
             <td>${item.DESCRIPTION}</td>
             <td>${item.OfferPrice}</td>
             <td>${cleanDate(item.StartDate)}</td>
             <td>${cleanDate(item.EndDate)}</td>
+            <td class="center">${daysRemainingHTML}</td>
+            <td class="supplier-name" title="${supplier}">${supplier}</td>
+            <td>${item.Mechanism || item.mechanism || ""}</td>
+            <td>${section}</td>
+            <td class="center">${duration}</td>
+            <td><span class="status ${statusClass}">${status}</span></td>
+        </tr>
+    `;
+}
+
+// Render a single offer row for UPCOMING offers
+function renderUpcomingOfferRow(item) {
+    const duration = offerDuration(item.StartDate, item.EndDate);
+    const status = getItemStatus(item);
+    const statusClass = status;
+    const section = (item.Section || item.section || "").trim();
+    const supplier = (item.Supplier || item.supplier || "").trim();
+    
+    // Calculate days to start
+    const daysToStart = calculateDaysToStart(item.StartDate);
+    let daysToStartHTML = '<span class="days-to-start">-</span>';
+    
+    if (daysToStart !== null) {
+        const daysClass = daysToStart < 3 ? 'warning' : '';
+        daysToStartHTML = `<span class="days-to-start ${daysClass}">${daysToStart}</span>`;
+    }
+    
+    // Check if this is a new offer
+    const isNewOffer = isNewItem(item);
+    const skuDisplay = isNewOffer ? `${item.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : item.SKU;
+    
+    return `
+        <tr ${isNewOffer ? 'style="border-left: 4px solid #ffd700;"' : ''}>
+            <td>${skuDisplay}</td>
+            <td>${item.DESCRIPTION}</td>
+            <td>${item.OfferPrice}</td>
+            <td>${cleanDate(item.StartDate)}</td>
+            <td>${cleanDate(item.EndDate)}</td>
+            <td class="center">${daysToStartHTML}</td>
             <td class="supplier-name" title="${supplier}">${supplier}</td>
             <td>${item.Mechanism || item.mechanism || ""}</td>
             <td>${section}</td>
@@ -394,10 +659,7 @@ function renderOfferRow(item) {
 
 // Render both tables independently
 function renderAllTables() {
-    // Apply ALL filters to all offers
     const filteredOffers = applyAllFilters(allOffers);
-    
-    // Get offers for each table
     const currentOffers = getCurrentOffers(filteredOffers);
     const upcomingOffers = getUpcomingOffers(filteredOffers);
     
@@ -406,12 +668,12 @@ function renderAllTables() {
     if (currentOffers.length > 0) {
         let currentHtml = '';
         currentOffers.forEach(item => {
-            currentHtml += renderOfferRow(item);
+            currentHtml += renderCurrentOfferRow(item);
         });
         currentTbody.innerHTML = currentHtml;
         document.getElementById("current-title").textContent = `Current Offers (${currentOffers.length})`;
     } else {
-        currentTbody.innerHTML = `<tr><td colspan="10" class="no-results">No current offers found</td></tr>`;
+        currentTbody.innerHTML = `<tr><td colspan="11" class="no-results">No current offers found</td></tr>`;
         document.getElementById("current-title").textContent = `Current Offers (0)`;
     }
     
@@ -420,44 +682,49 @@ function renderAllTables() {
     if (upcomingOffers.length > 0) {
         let upcomingHtml = '';
         upcomingOffers.forEach(item => {
-            upcomingHtml += renderOfferRow(item);
+            upcomingHtml += renderUpcomingOfferRow(item);
         });
         upcomingTbody.innerHTML = upcomingHtml;
         document.getElementById("upcoming-title").textContent = `Upcoming Offers (${upcomingOffers.length})`;
     } else {
-        upcomingTbody.innerHTML = `<tr><td colspan="10" class="no-results">No upcoming offers found</td></tr>`;
+        upcomingTbody.innerHTML = `<tr><td colspan="11" class="no-results">No upcoming offers found</td></tr>`;
         document.getElementById("upcoming-title").textContent = `Upcoming Offers (0)`;
     }
 }
 
-// Update table titles based on active filters
-function updateTableTitles() {
-    const currentTitle = document.getElementById("current-title");
-    const upcomingTitle = document.getElementById("upcoming-title");
-    
-    let titlePrefix = "";
-    
-    if (currentFilters.section !== 'all') {
-        titlePrefix += currentFilters.section + " ";
-    }
-    
-    if (currentFilters.supplier !== 'all') {
-        const shortSupplier = currentFilters.supplier.length > 20 
-            ? currentFilters.supplier.substring(0, 17) + '...' 
-            : currentFilters.supplier;
-        titlePrefix += shortSupplier + " ";
-    }
-    
-    if (currentFilters.status === 'active') {
-        currentTitle.textContent = `${titlePrefix}Current Offers`;
-        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
-    } else if (currentFilters.status === 'upcoming') {
-        currentTitle.textContent = `${titlePrefix}Current Offers`;
-        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
+// Update last updated from Google Sheet data
+function updateLastUpdatedFromSheet() {
+    if (sheetLastUpdated) {
+        const formattedDate = new Date(sheetLastUpdated).toLocaleString('en-KE', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('last-updated').textContent = `Sheet Updated: ${formattedDate}`;
+        
+        // Store in localStorage
+        localStorage.setItem(SHEET_UPDATE_KEY, sheetLastUpdated);
     } else {
-        currentTitle.textContent = `${titlePrefix}Current Offers`;
-        upcomingTitle.textContent = `${titlePrefix}Upcoming Offers`;
+        // Fallback to current time
+        updateLastUpdatedToCurrent();
     }
+}
+
+// Update last updated to current time
+function updateLastUpdatedToCurrent() {
+    const now = new Date();
+    const formattedDate = now.toLocaleString('en-KE', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    document.getElementById('last-updated').textContent = `Last Updated: ${formattedDate}`;
 }
 
 // Update active filters display
@@ -488,31 +755,122 @@ function updateActiveFilters() {
     }
 }
 
-// Update last updated timestamp
-function updateLastUpdated() {
-    const now = new Date();
-    const formattedDate = now.toLocaleString('en-KE', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+// Check if an item is new compared to last view
+function isNewItem(item) {
+    const itemId = `${item.SKU}-${item.StartDate}-${item.EndDate}`;
+    return !lastViewedOffers.has(itemId);
+}
+
+// Count new items
+function countNewItems() {
+    if (lastViewedOffers.size === 0) return 0;
+    
+    let count = 0;
+    allOffers.forEach(item => {
+        if (isNewItem(item)) {
+            count++;
+        }
+    });
+    return count;
+}
+
+// Show notification for new items
+function showNotificationIfNewItems() {
+    const newItemsCount = countNewItems();
+    
+    if (newItemsCount > 0) {
+        document.getElementById('newItemsCount').textContent = newItemsCount;
+        document.getElementById('notificationMessage').textContent = 
+            `${newItemsCount} new offer${newItemsCount > 1 ? 's have' : ' has'} been added since your last visit.`;
+        
+        // Show notification with animation
+        setTimeout(() => {
+            document.getElementById('notificationPopup').classList.add('show');
+        }, 1000);
+    }
+}
+
+// Close notification
+function closeNotification() {
+    document.getElementById('notificationPopup').classList.remove('show');
+    // Mark all current offers as viewed
+    updateLastViewedOffers();
+}
+
+// View new offers - filter to show only new ones
+function viewNewOffers() {
+    // Create a temporary filter to show only new items
+    const newItems = allOffers.filter(item => isNewItem(item));
+    
+    // Extract sections and suppliers from new items only
+    const filterData = extractFiltersData(newItems);
+    
+    // Update filter buttons to show only relevant sections/suppliers
+    createSectionButtons(filterData.sections);
+    createSupplierButtons(filterData.suppliers);
+    
+    // Set filter to show all (since we're already filtered by new items)
+    currentFilters.section = 'all';
+    currentFilters.supplier = 'all';
+    currentFilters.status = 'all';
+    
+    // Update button states
+    document.querySelectorAll('.filter-btn[data-filter="section"]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === 'all');
+    });
+    document.querySelectorAll('.filter-btn[data-filter="supplier"]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === 'all');
+    });
+    document.querySelectorAll('.filter-btn[data-filter="status"]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-value') === 'all');
     });
     
-    document.getElementById('last-updated').textContent = `Last Updated: ${formattedDate}`;
+    // Re-render tables
+    renderAllTables();
+    updateActiveFilters();
+    
+    // Close notification
+    closeNotification();
+}
+
+// Update last viewed offers in localStorage
+function updateLastViewedOffers() {
+    const viewedOffers = new Set();
+    allOffers.forEach(item => {
+        const itemId = `${item.SKU}-${item.StartDate}-${item.EndDate}`;
+        viewedOffers.add(itemId);
+    });
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(viewedOffers)));
+    lastViewedOffers = viewedOffers;
+}
+
+// Load last viewed offers from localStorage
+function loadLastViewedOffers() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            lastViewedOffers = new Set(JSON.parse(stored));
+        }
+    } catch (e) {
+        console.log('No previous view data found');
+    }
 }
 
 // Clear all filters
 function clearAllFilters() {
-    // Reset all filters to "all"
     currentFilters = {
         section: 'all',
         supplier: 'all',
         status: 'all'
     };
     
-    // Reset all filter button states
+    // Reset filter buttons to show all options
+    const filterData = extractFiltersData(allOffers);
+    createSectionButtons(filterData.sections);
+    createSupplierButtons(filterData.suppliers);
+    
+    // Update button states
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.getAttribute('data-value') === 'all') {
@@ -520,35 +878,26 @@ function clearAllFilters() {
         }
     });
     
-    // Re-render everything
     renderAllTables();
-    updateTableTitles();
     updateActiveFilters();
-    updateLastUpdated();
+    updateLastUpdatedFromSheet();
 }
 
-// Handle filter button clicks - COMPLETELY INDEPENDENT
+// Handle filter button clicks
 function setupFilterButtons() {
     document.addEventListener('click', function(e) {
         if (e.target.matches('.filter-btn')) {
             const filterType = e.target.getAttribute('data-filter');
             const filterValue = e.target.getAttribute('data-value');
             
-            // Update the specific filter ONLY
             currentFilters[filterType] = filterValue;
             
-            // Update button active state for this filter group ONLY
             document.querySelectorAll(`.filter-btn[data-filter="${filterType}"]`)
                 .forEach(btn => btn.classList.remove('active'));
             e.target.classList.add('active');
             
-            // Re-render tables with all filters applied independently
             renderAllTables();
-            
-            // Update UI elements
-            updateTableTitles();
             updateActiveFilters();
-            updateLastUpdated();
         }
     });
 }
@@ -560,6 +909,20 @@ async function loadOffers(){
         const data = await res.json();
         allOffers = data;
         
+        // Try to extract sheet update time from response headers or first item
+        if (data.length > 0 && data[0]._timestamp) {
+            sheetLastUpdated = data[0]._timestamp;
+        } else {
+            // Fallback: check if we have a stored sheet update time
+            const storedUpdate = localStorage.getItem(SHEET_UPDATE_KEY);
+            if (storedUpdate) {
+                sheetLastUpdated = storedUpdate;
+            }
+        }
+        
+        // Load last viewed offers
+        loadLastViewedOffers();
+        
         // Extract unique sections and suppliers
         const filterData = extractFiltersData(allOffers);
         
@@ -570,17 +933,24 @@ async function loadOffers(){
         // Initial render with all offers
         renderAllTables();
         
-        // Update last updated timestamp
-        updateLastUpdated();
+        // Update last updated from sheet
+        updateLastUpdatedFromSheet();
+        
+        // Show notification if there are new items
+        showNotificationIfNewItems();
         
         // Setup filter buttons
         setupFilterButtons();
+        
+        // Update last viewed offers
+        updateLastViewedOffers();
+        
     }catch(err){
         console.error("Error loading offers:", err);
         document.getElementById("current-offers").innerHTML = 
-            '<tr><td colspan="10" class="loading">Failed to load offers. Please try again later.</td></tr>';
+            '<tr><td colspan="11" class="loading">Failed to load offers. Please try again later.</td></tr>';
         document.getElementById("upcoming-offers").innerHTML = 
-            '<tr><td colspan="10" class="loading"></td></tr>';
+            '<tr><td colspan="11" class="loading"></td></tr>';
         document.getElementById('last-updated').textContent = 'Last Updated: Error loading data';
     }
 }
