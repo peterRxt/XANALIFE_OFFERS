@@ -337,6 +337,7 @@
                 <tr>
                     <th>SKU</th>
                     <th>Description</th>
+                    <th>Original Price (KSh)</th>
                     <th>Offer Price (KSh)</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -349,7 +350,7 @@
                 </tr>
             </thead>
             <tbody id="current-offers">
-                <tr><td colspan="11" class="loading">Loading current offers...</td></tr>
+                <tr><td colspan="12" class="loading">Loading current offers...</td></tr>
             </tbody>
         </table>
     </div>
@@ -362,6 +363,7 @@
                 <tr>
                     <th>SKU</th>
                     <th>Description</th>
+                    <th>Original Price (KSh)</th>
                     <th>Offer Price (KSh)</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -374,7 +376,7 @@
                 </tr>
             </thead>
             <tbody id="upcoming-offers">
-                <tr><td colspan="11" class="loading">Loading upcoming offers...</td></tr>
+                <tr><td colspan="12" class="loading">Loading upcoming offers...</td></tr>
             </tbody>
         </table>
     </div>
@@ -395,6 +397,79 @@ let currentFilters = {
 let lastViewedOffers = new Set();
 let sheetLastUpdated = null;
 
+// Parse date safely - HANDLES YOUR DATA FORMATS
+function parseDate(dateString) {
+    if (!dateString || dateString === '' || dateString === 'undefined') {
+        console.log('Empty date string:', dateString);
+        return null;
+    }
+    
+    // Convert to string and trim
+    const str = String(dateString).trim();
+    
+    // Try different date formats in order of likelihood
+    
+    // 1. Format: YYYY-MM-DD (like 2026-03-03)
+    const yyyyMmDdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (yyyyMmDdMatch) {
+        const year = parseInt(yyyyMmDdMatch[1]);
+        let month = parseInt(yyyyMmDdMatch[2]) - 1; // JS months are 0-indexed
+        let day = parseInt(yyyyMmDdMatch[3]);
+        
+        // Fix invalid months (like 15 in your example)
+        if (month > 11) {
+            console.warn(`Invalid month ${month + 1} in date: ${str}. Defaulting to December.`);
+            month = 11; // December (0-indexed)
+        }
+        
+        // Fix invalid days
+        if (day > 31) {
+            console.warn(`Invalid day ${day} in date: ${str}. Defaulting to 31.`);
+            day = 31;
+        }
+        
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+    
+    // 2. Format: DD-MM-YYYY (like 01-02-2026)
+    const ddMmYyyyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (ddMmYyyyMatch) {
+        const day = parseInt(ddMmYyyyMatch[1]);
+        const month = parseInt(ddMmYyyyMatch[2]) - 1;
+        const year = parseInt(ddMmYyyyMatch[3]);
+        
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+    
+    // 3. Format: MM/DD/YYYY
+    const mmDdYyyyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (mmDdYyyyMatch) {
+        const month = parseInt(mmDdYyyyMatch[1]) - 1;
+        const day = parseInt(mmDdYyyyMatch[2]);
+        const year = parseInt(mmDdYyyyMatch[3]);
+        
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+    
+    // 4. Try direct Date.parse for other formats
+    const parsed = Date.parse(str);
+    if (!isNaN(parsed)) {
+        return new Date(parsed);
+    }
+    
+    console.warn('Could not parse date:', str);
+    return null;
+}
+
 // Get today's date at midnight for comparison
 function getToday() {
     const today = new Date();
@@ -407,7 +482,9 @@ function calculateDaysRemaining(endDate) {
     if (!endDate) return null;
     
     const today = getToday();
-    const end = new Date(endDate);
+    const end = parseDate(endDate);
+    if (!end) return null;
+    
     end.setHours(0, 0, 0, 0);
     
     const diffTime = end - today;
@@ -421,7 +498,9 @@ function calculateDaysToStart(startDate) {
     if (!startDate) return null;
     
     const today = getToday();
-    const start = new Date(startDate);
+    const start = parseDate(startDate);
+    if (!start) return null;
+    
     start.setHours(0, 0, 0, 0);
     
     const diffTime = start - today;
@@ -430,47 +509,81 @@ function calculateDaysToStart(startDate) {
     return diffDays >= 0 ? diffDays : 0;
 }
 
-// Format date to YYYY-MM-DD
-function cleanDate(value){
-    if(!value) return "";
-    const d = new Date(value);
-    return d.toISOString().slice(0,10);
+// Format date to YYYY-MM-DD safely
+function cleanDate(value) {
+    if (!value || value === 'undefined') return "-";
+    
+    try {
+        const parsed = parseDate(value);
+        if (parsed && !isNaN(parsed.getTime())) {
+            const year = parsed.getFullYear();
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const day = String(parsed.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        // Return as-is if can't parse
+        return String(value);
+    } catch (e) {
+        console.warn('Error formatting date:', value, e);
+        return String(value);
+    }
 }
 
-// Determine status - UPDATED: If start date is today or in the past, mark as active
+// Determine status based on dates and status field
 function getItemStatus(item){
     const today = getToday();
-    const startDate = new Date(item.StartDate);
+    
+    // First check status field if it exists
+    const statusField = (item.status || "").toLowerCase();
+    if (statusField === "active" || statusField === "upcoming") {
+        return statusField;
+    }
+    
+    // Check dates
+    const startDateStr = item.StartDate || item.startDate;
+    const endDateStr = item.EndDate || item.endDate;
+    
+    const startDate = parseDate(startDateStr);
+    const endDate = parseDate(endDateStr);
+    
+    if (!startDate) {
+        return "active"; // Default if no start date
+    }
+    
     startDate.setHours(0, 0, 0, 0);
     
-    // If start date is today or in the past, mark as active
-    if (startDate <= today) {
-        return "active";
-    }
-    
-    // Otherwise check status field
-    if(item.status && item.status.toLowerCase() === "upcoming") {
-        return "upcoming";
-    }
-    
-    // Fallback to original logic
-    const endDate = new Date(item.EndDate);
-    endDate.setHours(0, 0, 0, 0);
-    
+    // If start date is in future, it's upcoming
     if (startDate > today) {
         return "upcoming";
-    } else if (endDate >= today) {
-        return "active";
-    } else {
-        return "expired";
     }
+    
+    // If we have an end date, check if offer has expired
+    if (endDate) {
+        endDate.setHours(0, 0, 0, 0);
+        if (endDate < today) {
+            return "expired";
+        }
+    }
+    
+    // Otherwise, it's active
+    return "active";
 }
 
 // Calculate offer duration in days
-function offerDuration(start, end){
-    if(!start || !end) return "";
-    const s = new Date(start);
-    const e = new Date(end);
+function offerDuration(start, end) {
+    if (!start || !end) return "-";
+    
+    const s = parseDate(start);
+    const e = parseDate(end);
+    
+    if (!s || !e) return "-";
+    
+    // Ensure end date is after start date
+    if (e < s) {
+        console.warn(`End date (${end}) is before start date (${start})`);
+        return 0;
+    }
+    
     const diffTime = e - s;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
@@ -483,17 +596,20 @@ function extractFiltersData(offers) {
     
     offers.forEach(item => {
         const section = (item.Section || item.section || "").trim();
-        if (section) {
+        if (section && section !== 'undefined') {
             sections.add(section);
         }
         
         const supplier = (item.Supplier || item.supplier || "").trim();
-        if (supplier) {
+        if (supplier && supplier !== 'undefined') {
             suppliers.add(supplier);
         }
     });
     
-    return { sections: Array.from(sections).sort(), suppliers: Array.from(suppliers).sort() };
+    return { 
+        sections: Array.from(sections).filter(s => s && s !== 'undefined').sort(), 
+        suppliers: Array.from(suppliers).filter(s => s && s !== 'undefined').sort() 
+    };
 }
 
 // Create filter buttons for sections
@@ -502,7 +618,9 @@ function createSectionButtons(sections) {
     let html = '<button class="filter-btn active" data-filter="section" data-value="all">All Sections</button>';
     
     sections.forEach(section => {
-        html += `<button class="filter-btn" data-filter="section" data-value="${section}">${section}</button>`;
+        if (section && section.trim() && section !== 'undefined') {
+            html += `<button class="filter-btn" data-filter="section" data-value="${section}">${section}</button>`;
+        }
     });
     
     container.innerHTML = html;
@@ -514,8 +632,10 @@ function createSupplierButtons(suppliers) {
     let html = '<button class="filter-btn active" data-filter="supplier" data-value="all">All Suppliers</button>';
     
     suppliers.forEach(supplier => {
-        const displayName = supplier.length > 25 ? supplier.substring(0, 22) + '...' : supplier;
-        html += `<button class="filter-btn" data-filter="supplier" data-value="${supplier}" title="${supplier}">${displayName}</button>`;
+        if (supplier && supplier.trim() && supplier !== 'undefined') {
+            const displayName = supplier.length > 25 ? supplier.substring(0, 22) + '...' : supplier;
+            html += `<button class="filter-btn" data-filter="supplier" data-value="${supplier}" title="${supplier}">${displayName}</button>`;
+        }
     });
     
     container.innerHTML = html;
@@ -581,16 +701,49 @@ function getUpcomingOffers(filteredOffers) {
     });
 }
 
+// Validate offer data
+function validateOffer(item) {
+    return item && 
+           item.SKU !== undefined && 
+           item.DESCRIPTION !== undefined &&
+           item.OfferPrice !== undefined &&
+           item.Supplier !== undefined;
+}
+
+// Normalize offer data to handle different field names
+function normalizeOffer(item) {
+    // Handle different field name variations
+    return {
+        SKU: item.SKU || item.sku || item.id || "",
+        DESCRIPTION: item.DESCRIPTION || item.description || item.Desc || "",
+        OrigPrice: item.OrigPrice || item.origPrice || item.originalPrice || item.OriginalPrice || "",
+        OfferPrice: item.OfferPrice || item.offerPrice || item.offerprice || "",
+        Supplier: item.Supplier || item.supplier || "",
+        Mechanism: item.Mechanism || item.mechanism || "",
+        StartDate: item.StartDate || item.startDate || item.startdate || "",
+        EndDate: item.EndDate || item.endDate || item.enddate || "",
+        status: item.status || "",
+        Section: item.Section || item.section || ""
+    };
+}
+
 // Render a single offer row for CURRENT offers
 function renderCurrentOfferRow(item) {
-    const duration = offerDuration(item.StartDate, item.EndDate);
-    const status = getItemStatus(item);
+    const normItem = normalizeOffer(item);
+    
+    if (!validateOffer(normItem)) {
+        console.warn('Invalid offer data:', item);
+        return '';
+    }
+    
+    const duration = offerDuration(normItem.StartDate, normItem.EndDate);
+    const status = getItemStatus(normItem);
     const statusClass = status;
-    const section = (item.Section || item.section || "").trim();
-    const supplier = (item.Supplier || item.supplier || "").trim();
+    const section = normItem.Section.trim() || "-";
+    const supplier = normItem.Supplier.trim() || "-";
     
     // Calculate days remaining
-    const daysRemaining = calculateDaysRemaining(item.EndDate);
+    const daysRemaining = calculateDaysRemaining(normItem.EndDate);
     let daysRemainingHTML = '<span class="days-remaining">-</span>';
     
     if (daysRemaining !== null) {
@@ -599,19 +752,20 @@ function renderCurrentOfferRow(item) {
     }
     
     // Check if this is a new offer
-    const isNewOffer = isNewItem(item);
-    const skuDisplay = isNewOffer ? `${item.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : item.SKU;
+    const isNewOffer = isNewItem(normItem);
+    const skuDisplay = isNewOffer ? `${normItem.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : normItem.SKU;
     
     return `
         <tr ${isNewOffer ? 'style="border-left: 4px solid #ffd700;"' : ''}>
             <td>${skuDisplay}</td>
-            <td>${item.DESCRIPTION}</td>
-            <td>${item.OfferPrice}</td>
-            <td>${cleanDate(item.StartDate)}</td>
-            <td>${cleanDate(item.EndDate)}</td>
+            <td>${normItem.DESCRIPTION}</td>
+            <td>${normItem.OrigPrice || "-"}</td>
+            <td>${normItem.OfferPrice}</td>
+            <td>${cleanDate(normItem.StartDate)}</td>
+            <td>${cleanDate(normItem.EndDate)}</td>
             <td class="center">${daysRemainingHTML}</td>
             <td class="supplier-name" title="${supplier}">${supplier}</td>
-            <td>${item.Mechanism || item.mechanism || ""}</td>
+            <td>${normItem.Mechanism || "-"}</td>
             <td>${section}</td>
             <td class="center">${duration}</td>
             <td><span class="status ${statusClass}">${status}</span></td>
@@ -621,14 +775,21 @@ function renderCurrentOfferRow(item) {
 
 // Render a single offer row for UPCOMING offers
 function renderUpcomingOfferRow(item) {
-    const duration = offerDuration(item.StartDate, item.EndDate);
-    const status = getItemStatus(item);
+    const normItem = normalizeOffer(item);
+    
+    if (!validateOffer(normItem)) {
+        console.warn('Invalid offer data:', item);
+        return '';
+    }
+    
+    const duration = offerDuration(normItem.StartDate, normItem.EndDate);
+    const status = getItemStatus(normItem);
     const statusClass = status;
-    const section = (item.Section || item.section || "").trim();
-    const supplier = (item.Supplier || item.supplier || "").trim();
+    const section = normItem.Section.trim() || "-";
+    const supplier = normItem.Supplier.trim() || "-";
     
     // Calculate days to start
-    const daysToStart = calculateDaysToStart(item.StartDate);
+    const daysToStart = calculateDaysToStart(normItem.StartDate);
     let daysToStartHTML = '<span class="days-to-start">-</span>';
     
     if (daysToStart !== null) {
@@ -637,19 +798,20 @@ function renderUpcomingOfferRow(item) {
     }
     
     // Check if this is a new offer
-    const isNewOffer = isNewItem(item);
-    const skuDisplay = isNewOffer ? `${item.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : item.SKU;
+    const isNewOffer = isNewItem(normItem);
+    const skuDisplay = isNewOffer ? `${normItem.SKU} <i class="fas fa-star" style="color: #ffd700; margin-left: 5px;"></i>` : normItem.SKU;
     
     return `
         <tr ${isNewOffer ? 'style="border-left: 4px solid #ffd700;"' : ''}>
             <td>${skuDisplay}</td>
-            <td>${item.DESCRIPTION}</td>
-            <td>${item.OfferPrice}</td>
-            <td>${cleanDate(item.StartDate)}</td>
-            <td>${cleanDate(item.EndDate)}</td>
+            <td>${normItem.DESCRIPTION}</td>
+            <td>${normItem.OrigPrice || "-"}</td>
+            <td>${normItem.OfferPrice}</td>
+            <td>${cleanDate(normItem.StartDate)}</td>
+            <td>${cleanDate(normItem.EndDate)}</td>
             <td class="center">${daysToStartHTML}</td>
             <td class="supplier-name" title="${supplier}">${supplier}</td>
-            <td>${item.Mechanism || item.mechanism || ""}</td>
+            <td>${normItem.Mechanism || "-"}</td>
             <td>${section}</td>
             <td class="center">${duration}</td>
             <td><span class="status ${statusClass}">${status}</span></td>
@@ -668,12 +830,15 @@ function renderAllTables() {
     if (currentOffers.length > 0) {
         let currentHtml = '';
         currentOffers.forEach(item => {
-            currentHtml += renderCurrentOfferRow(item);
+            const row = renderCurrentOfferRow(item);
+            if (row) {
+                currentHtml += row;
+            }
         });
-        currentTbody.innerHTML = currentHtml;
+        currentTbody.innerHTML = currentHtml || '<tr><td colspan="12" class="no-results">No valid current offers found</td></tr>';
         document.getElementById("current-title").textContent = `Current Offers (${currentOffers.length})`;
     } else {
-        currentTbody.innerHTML = `<tr><td colspan="11" class="no-results">No current offers found</td></tr>`;
+        currentTbody.innerHTML = `<tr><td colspan="12" class="no-results">No current offers found</td></tr>`;
         document.getElementById("current-title").textContent = `Current Offers (0)`;
     }
     
@@ -682,12 +847,15 @@ function renderAllTables() {
     if (upcomingOffers.length > 0) {
         let upcomingHtml = '';
         upcomingOffers.forEach(item => {
-            upcomingHtml += renderUpcomingOfferRow(item);
+            const row = renderUpcomingOfferRow(item);
+            if (row) {
+                upcomingHtml += row;
+            }
         });
-        upcomingTbody.innerHTML = upcomingHtml;
+        upcomingTbody.innerHTML = upcomingHtml || '<tr><td colspan="12" class="no-results">No valid upcoming offers found</td></tr>';
         document.getElementById("upcoming-title").textContent = `Upcoming Offers (${upcomingOffers.length})`;
     } else {
-        upcomingTbody.innerHTML = `<tr><td colspan="11" class="no-results">No upcoming offers found</td></tr>`;
+        upcomingTbody.innerHTML = `<tr><td colspan="12" class="no-results">No upcoming offers found</td></tr>`;
         document.getElementById("upcoming-title").textContent = `Upcoming Offers (0)`;
     }
 }
@@ -757,7 +925,8 @@ function updateActiveFilters() {
 
 // Check if an item is new compared to last view
 function isNewItem(item) {
-    const itemId = `${item.SKU}-${item.StartDate}-${item.EndDate}`;
+    if (!item.SKU) return false;
+    const itemId = `${item.SKU}-${cleanDate(item.StartDate)}-${cleanDate(item.EndDate)}`;
     return !lastViewedOffers.has(itemId);
 }
 
@@ -837,8 +1006,10 @@ function viewNewOffers() {
 function updateLastViewedOffers() {
     const viewedOffers = new Set();
     allOffers.forEach(item => {
-        const itemId = `${item.SKU}-${item.StartDate}-${item.EndDate}`;
-        viewedOffers.add(itemId);
+        if (item.SKU) {
+            const itemId = `${item.SKU}-${cleanDate(item.StartDate)}-${cleanDate(item.EndDate)}`;
+            viewedOffers.add(itemId);
+        }
     });
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(viewedOffers)));
@@ -902,18 +1073,68 @@ function setupFilterButtons() {
     });
 }
 
+// Debug function to log data issues
+function debugData(data) {
+    console.log("=== DATA DEBUG ===");
+    console.log("Total records:", data.length);
+    
+    // Check first few records
+    data.slice(0, 5).forEach((item, index) => {
+        console.log(`\nRecord ${index}:`, item);
+        console.log(`SKU: ${item.SKU}`);
+        console.log(`Supplier: ${item.Supplier}`);
+        console.log(`StartDate: ${item.StartDate} (parsed: ${parseDate(item.StartDate)})`);
+        console.log(`EndDate: ${item.EndDate} (parsed: ${parseDate(item.EndDate)})`);
+    });
+    
+    // Check field names
+    const firstItem = data[0];
+    if (firstItem) {
+        console.log("\n=== FIELD NAMES ===");
+        Object.keys(firstItem).forEach(key => {
+            console.log(`${key}: ${firstItem[key]}`);
+        });
+    }
+}
+
 // Load offers on page load
 async function loadOffers(){
     try{
+        console.log("Fetching offers from:", API_URL);
         const res = await fetch(API_URL);
         const data = await res.json();
-        allOffers = data;
         
-        // Try to extract sheet update time from response headers or first item
-        if (data.length > 0 && data[0]._timestamp) {
-            sheetLastUpdated = data[0]._timestamp;
-        } else {
-            // Fallback: check if we have a stored sheet update time
+        console.log("Raw data received:", data);
+        
+        if (!Array.isArray(data)) {
+            console.error("Data is not an array:", data);
+            throw new Error('Invalid data format received - expected array');
+        }
+        
+        // Filter out invalid data and normalize field names
+        allOffers = data.filter(item => {
+            return item && 
+                   typeof item === 'object' && 
+                   !Array.isArray(item) &&
+                   (item.SKU !== undefined || item.sku !== undefined);
+        }).map(normalizeOffer);
+        
+        console.log(`Loaded ${allOffers.length} valid offers from ${data.length} total records`);
+        
+        // Debug the data
+        debugData(allOffers);
+        
+        // Try to extract sheet update time
+        if (allOffers.length > 0) {
+            // Check for timestamp in first item
+            const firstItem = allOffers[0];
+            if (firstItem._timestamp) {
+                sheetLastUpdated = firstItem._timestamp;
+            }
+        }
+        
+        // Fallback to stored update time
+        if (!sheetLastUpdated) {
             const storedUpdate = localStorage.getItem(SHEET_UPDATE_KEY);
             if (storedUpdate) {
                 sheetLastUpdated = storedUpdate;
@@ -925,6 +1146,7 @@ async function loadOffers(){
         
         // Extract unique sections and suppliers
         const filterData = extractFiltersData(allOffers);
+        console.log("Filter data extracted:", filterData);
         
         // Create filter buttons
         createSectionButtons(filterData.sections);
@@ -945,13 +1167,32 @@ async function loadOffers(){
         // Update last viewed offers
         updateLastViewedOffers();
         
+        // Cache the data
+        localStorage.setItem('offers_cache', JSON.stringify(allOffers));
+        
     }catch(err){
         console.error("Error loading offers:", err);
         document.getElementById("current-offers").innerHTML = 
-            '<tr><td colspan="11" class="loading">Failed to load offers. Please try again later.</td></tr>';
+            '<tr><td colspan="12" class="loading">Failed to load offers. Please check console for details.</td></tr>';
         document.getElementById("upcoming-offers").innerHTML = 
-            '<tr><td colspan="11" class="loading"></td></tr>';
+            '<tr><td colspan="12" class="loading"></td></tr>';
         document.getElementById('last-updated').textContent = 'Last Updated: Error loading data';
+        
+        // Try to load from cache if available
+        const cachedData = localStorage.getItem('offers_cache');
+        if (cachedData) {
+            try {
+                console.log('Attempting to load cached data');
+                const data = JSON.parse(cachedData);
+                if (Array.isArray(data) && data.length > 0) {
+                    allOffers = data;
+                    renderAllTables();
+                    document.getElementById('last-updated').textContent = 'Last Updated: Using cached data (network error)';
+                }
+            } catch (cacheErr) {
+                console.error('Failed to load cached data:', cacheErr);
+            }
+        }
     }
 }
 
